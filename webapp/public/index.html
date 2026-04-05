@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ZK-ML Classifier Demo</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f4f8;
+      color: #1a202c;
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    header h1 {
+      font-size: 1.8rem;
+      color: #2563eb;
+      margin-bottom: 6px;
+    }
+    header p {
+      color: #64748b;
+      font-size: 0.95rem;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 60px 1fr;
+      gap: 0;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .panel {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 24px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    }
+
+    .panel h2 {
+      font-size: 1.1rem;
+      margin-bottom: 4px;
+    }
+    .panel .role {
+      font-size: 0.8rem;
+      color: #64748b;
+      margin-bottom: 16px;
+    }
+
+    .prover h2 { color: #dc2626; }
+    .verifier h2 { color: #16a34a; }
+
+    .arrow-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: #94a3b8;
+      font-size: 0.75rem;
+      text-align: center;
+    }
+    .arrow-col .arrow { font-size: 1.8rem; color: #2563eb; }
+
+    .field {
+      margin-bottom: 14px;
+    }
+    .field label {
+      display: block;
+      font-size: 0.75rem;
+      color: #64748b;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .field .value {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      word-break: break-all;
+      color: #1a202c;
+    }
+    .field .value.hidden {
+      color: #94a3b8;
+      font-style: italic;
+      letter-spacing: 0.1em;
+    }
+    .field .value.mono {
+      font-family: monospace;
+      font-size: 0.78rem;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .badge.attack { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
+    .badge.benign { background: #dcfce7; color: #16a34a; border: 1px solid #86efac; }
+    .badge.private { background: #dbeafe; color: #2563eb; border: 1px solid #93c5fd; }
+    .badge.public { background: #fef9c3; color: #ca8a04; border: 1px solid #fde047; }
+
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 10px 20px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: opacity 0.2s;
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    #btnHonest { background: #238636; color: white; }
+    #btnTamper { background: #da3633; color: white; }
+
+    #btnHonest:hover:not(:disabled) { background: #2ea043; }
+    #btnTamper:hover:not(:disabled) { background: #f85149; }
+
+    .steps {
+      margin-top: 20px;
+    }
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 8px 0;
+      border-bottom: 1px solid #e2e8f0;
+      opacity: 0.3;
+      transition: opacity 0.4s;
+    }
+    .step.active { opacity: 1; }
+    .step-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #cbd5e1;
+      color: #475569;
+      font-size: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .step.active .step-num { background: #2563eb; color: #ffffff; }
+    .step.done .step-num { background: #16a34a; color: #ffffff; }
+    .step.done { opacity: 1; }
+    .step-text { font-size: 0.85rem; }
+    .step-text span { color: #64748b; font-size: 0.78rem; display: block; }
+
+    .result-box {
+      margin-top: 20px;
+      padding: 16px;
+      border-radius: 8px;
+      text-align: center;
+      display: none;
+    }
+    .result-box.valid { background: #f0fdf4; border: 1px solid #86efac; }
+    .result-box.invalid { background: #fff1f2; border: 1px solid #fca5a5; }
+    .result-box .result-icon { font-size: 2.5rem; margin-bottom: 6px; }
+    .result-box .result-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 4px; }
+    .result-box.valid .result-title { color: #16a34a; }
+    .result-box.invalid .result-title { color: #dc2626; }
+    .result-box .result-sub { font-size: 0.82rem; color: #64748b; }
+
+    .timing { font-size: 0.78rem; color: #64748b; margin-top: 8px; }
+
+    .proof-preview {
+      margin-top: 16px;
+      display: none;
+    }
+    .proof-preview label {
+      font-size: 0.75rem;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+      display: block;
+    }
+    .proof-preview pre {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 0.73rem;
+      overflow-x: auto;
+      color: #2563eb;
+      font-family: monospace;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #cbd5e1;
+      border-top-color: #2563eb;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    footer {
+      text-align: center;
+      margin-top: 32px;
+      color: #64748b;
+      font-size: 0.8rem;
+    }
+
+    .tag-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Zero-Knowledge ML Classifier</h1>
+  <p>Prove classification integrity without revealing private input data &mdash; Groth16 on BN128 &bull; Circom 2.2.3</p>
+</header>
+
+<div class="layout">
+
+  <!-- PROVER PANEL -->
+  <div class="panel prover">
+    <h2>Prover &mdash; AI Node</h2>
+    <p class="role">Runs the model &bull; Generates the ZK proof</p>
+
+    <div class="tag-row">
+      <span class="badge private">Private: Input Features</span>
+      <span class="badge public">Public: Weights &amp; Bias</span>
+    </div>
+
+    <div class="field">
+      <label>Network Traffic Features (x[0..45])</label>
+      <div class="value hidden">&#9679;&#9679;&#9679; PRIVATE — hidden from verifier &#9679;&#9679;&#9679;</div>
+    </div>
+
+    <div class="field">
+      <label>Model</label>
+      <div class="value">Logistic Regression &bull; 46 features &bull; Binary classification</div>
+    </div>
+
+    <div class="field">
+      <label>Circuit</label>
+      <div class="value">classifier.circom &bull; 48 non-linear + 46 linear constraints &bull; 188 wires</div>
+    </div>
+
+    <div class="field">
+      <label>Reported Label</label>
+      <div class="value" id="labelDisplay">—</div>
+    </div>
+
+    <div class="btn-group">
+      <button id="btnHonest" onclick="runDemo(false)">&#9654; Honest Prover (Attack)</button>
+      <button id="btnTamper" onclick="runDemo(true)">&#9888; Dishonest Prover (Tampered)</button>
+    </div>
+
+    <div class="steps" id="steps">
+      <div class="step" id="step1">
+        <div class="step-num">1</div>
+        <div class="step-text">Compute classification
+          <span>Evaluate dot(weights, x) + bias using private inputs</span>
+        </div>
+      </div>
+      <div class="step" id="step2">
+        <div class="step-num">2</div>
+        <div class="step-text">Generate witness
+          <span>Compute all circuit wire values (private)</span>
+        </div>
+      </div>
+      <div class="step" id="step3">
+        <div class="step-num">3</div>
+        <div class="step-text">Generate ZK proof
+          <span>Using Groth16 + proving key (classifier_final.zkey)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ARROW -->
+  <div class="arrow-col">
+    <div class="arrow">&#8594;</div>
+    <div>proof.json<br/>public.json</div>
+  </div>
+
+  <!-- VERIFIER PANEL -->
+  <div class="panel verifier">
+    <h2>Verifier</h2>
+    <p class="role">Receives proof &bull; Checks integrity &bull; Never sees private data</p>
+
+    <div class="tag-row">
+      <span class="badge public">Sees: Proof + Public Signals only</span>
+    </div>
+
+    <div class="field">
+      <label>Verification Key</label>
+      <div class="value">verification_key.json &bull; Groth16 &bull; BN128 curve</div>
+    </div>
+
+    <div class="field">
+      <label>Private Inputs Visible?</label>
+      <div class="value" style="color:#dc2626;">No — zero knowledge guarantee</div>
+    </div>
+
+    <div class="result-box" id="resultBox">
+      <div class="result-icon" id="resultIcon"></div>
+      <div class="result-title" id="resultTitle"></div>
+      <div class="result-sub" id="resultSub"></div>
+      <div class="timing" id="timingInfo"></div>
+    </div>
+
+    <div class="proof-preview" id="proofPreview">
+      <label>Proof (proof.json)</label>
+      <pre id="proofJson"></pre>
+    </div>
+
+    <div class="proof-preview" id="publicPreview">
+      <label>Public Signals (public.json)</label>
+      <pre id="publicJson"></pre>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  Zero-Knowledge Enforcement of Classification Integrity in Distributed AI Systems &bull; Groth16 zkSNARK
+</footer>
+
+<script>
+  let running = false;
+
+  function setStep(n) {
+    for (let i = 1; i <= 3; i++) {
+      const el = document.getElementById('step' + i);
+      el.classList.remove('active', 'done');
+      if (i < n) el.classList.add('done');
+      else if (i === n) el.classList.add('active');
+    }
+  }
+
+  function resetUI() {
+    document.getElementById('resultBox').style.display = 'none';
+    document.getElementById('proofPreview').style.display = 'none';
+    document.getElementById('publicPreview').style.display = 'none';
+    document.getElementById('labelDisplay').textContent = '—';
+    for (let i = 1; i <= 3; i++) {
+      const el = document.getElementById('step' + i);
+      el.classList.remove('active', 'done');
+    }
+  }
+
+  async function runDemo(tamper) {
+    if (running) return;
+    running = true;
+
+    document.getElementById('btnHonest').disabled = true;
+    document.getElementById('btnTamper').disabled = true;
+
+    resetUI();
+
+    const labelEl = document.getElementById('labelDisplay');
+    labelEl.innerHTML = '<span class="spinner"></span> Classifying...';
+    setStep(1);
+
+    await sleep(600);
+    setStep(2);
+    labelEl.innerHTML = '<span class="spinner"></span> Generating witness...';
+    await sleep(400);
+
+    setStep(3);
+    labelEl.innerHTML = '<span class="spinner"></span> Generating ZK proof...';
+
+    try {
+      const res = await fetch('/api/prove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tamper })
+      });
+      const data = await res.json();
+
+      if (!data.ok) throw new Error(data.error);
+
+      // Mark all steps done
+      for (let i = 1; i <= 3; i++) {
+        document.getElementById('step' + i).classList.remove('active');
+        document.getElementById('step' + i).classList.add('done');
+      }
+
+      // Label
+      const labelVal = data.label;
+      const labelBadge = labelVal === '1' || labelVal === 1
+        ? '<span class="badge attack">1 — ATTACK</span>'
+        : '<span class="badge benign">0 — BENIGN</span>';
+      labelEl.innerHTML = labelBadge + (tamper ? ' <span style="color:#f78166;font-size:0.8rem">(tampered)</span>' : '');
+
+      // Result
+      const box = document.getElementById('resultBox');
+      const icon = document.getElementById('resultIcon');
+      const title = document.getElementById('resultTitle');
+      const sub = document.getElementById('resultSub');
+      const timing = document.getElementById('timingInfo');
+
+      box.style.display = 'block';
+
+      if (data.valid) {
+        box.className = 'result-box valid';
+        icon.textContent = '✅';
+        title.textContent = 'Proof Valid — OK!';
+        sub.textContent = 'Classification integrity verified. Private inputs were never revealed.';
+      } else if (data.proofValid && !data.labelMatchesScore) {
+        box.className = 'result-box invalid';
+        icon.textContent = '❌';
+        title.textContent = 'Label Mismatch — REJECTED';
+        sub.textContent = 'The ZK proof is cryptographically valid, but the claimed label contradicts the computed score. Dishonest prover detected.';
+      } else {
+        box.className = 'result-box invalid';
+        icon.textContent = '❌';
+        title.textContent = 'Proof Invalid — REJECTED';
+        sub.textContent = 'Tampered label detected. The proof does not satisfy the circuit constraints.';
+      }
+
+      timing.textContent = `Proof: ${data.timing.proveMs}ms  |  Verify: ${data.timing.verifyMs}ms`;
+
+      // Show proof snippets
+      document.getElementById('proofPreview').style.display = 'block';
+      document.getElementById('publicPreview').style.display = 'block';
+      document.getElementById('proofJson').textContent = JSON.stringify(data.proof, null, 2);
+      document.getElementById('publicJson').textContent = JSON.stringify(data.publicSignals, null, 2);
+
+    } catch (err) {
+      labelEl.textContent = 'Error: ' + err.message;
+    }
+
+    document.getElementById('btnHonest').disabled = false;
+    document.getElementById('btnTamper').disabled = false;
+    running = false;
+  }
+
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+</script>
+</body>
+</html>

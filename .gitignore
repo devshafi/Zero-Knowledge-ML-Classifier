@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+.venv/
+
+#Dataset
+dataset/
+
+# Models (large binary files)
+models/*.pkl
+
+# ZK build artifacts and keys (large files)
+zk/build/
+zk/keys/
+zk/proofs/
+!zk/keys/verification_key.json
+
+# Node modules
+webapp/node_modules/
+zk/node_modules/
+
+# Rust build
+zk/circom/
+
+# OS
+.DS_Store
