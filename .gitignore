@@ -11,11 +11,10 @@ dataset/
 # Models (large binary files)
 models/*.pkl
 
-# ZK build artifacts and keys (large files)
-zk/build/
-zk/keys/
+# ZK build artifacts and keys
+zk/build/witness.wtns
+zk/keys/*.ptau
 zk/proofs/
-!zk/keys/verification_key.json
 
 # Node modules
 webapp/node_modules/
